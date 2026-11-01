@@ -1,0 +1,126 @@
+# config/config.example.yaml
+# Copy to config.yaml and fill in your values.
+# config.yaml is gitignored — never commit secrets.
+
+app:
+  name: "RAG-AIOps Incident Diagnosis Framework"
+  version: "1.0.0"
+  environment: "development"       # development | staging | production
+  log_level: "INFO"
+
+# ── LLM Settings ───────────────────────────────────────────────
+llm:
+  provider: "openai"              # openai | anthropic | azure_openai
+  model: "gpt-4-turbo"
+  max_tokens: 1500
+  temperature: 0.1                # Low temp for deterministic diagnosis
+  timeout_seconds: 30
+
+  openai:
+    api_key: "sk-YOUR_OPENAI_KEY_HERE"
+    organization: ""              # Optional
+
+  anthropic:
+    api_key: "sk-ant-YOUR_ANTHROPIC_KEY_HERE"
+    model: "claude-3-opus-20240229"
+
+  azure_openai:
+    api_key: "YOUR_AZURE_KEY"
+    endpoint: "https://YOUR_RESOURCE.openai.azure.com/"
+    deployment_name: "gpt-4-turbo"
+    api_version: "2024-02-01"
+
+# ── Embedding Settings ─────────────────────────────────────────
+embedding:
+  provider: "openai"              # openai | local
+  model: "text-embedding-ada-002"
+  dimensions: 1536
+  batch_size: 100
+  local_model: "sentence-transformers/all-mpnet-base-v2"  # if provider=local
+
+# ── Vector Store ───────────────────────────────────────────────
+vector_store:
+  index_path: "data/faiss_index"
+  index_type: "HNSW"             # Flat | IVF | HNSW
+  hnsw_m: 32
+  hnsw_ef_construction: 400
+  hnsw_ef_search: 64
+  similarity_metric: "cosine"    # cosine | l2 | ip
+
+# ── Retrieval Settings ─────────────────────────────────────────
+retrieval:
+  top_k: 10                      # Candidates from FAISS
+  rerank_top_k: 5                # Final results after re-ranking
+  reranker_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  rerank_threshold: 0.45         # Min cross-encoder score
+  min_docs_before_expansion: 3   # Trigger HyDE if fewer docs pass threshold
+  hyde_enabled: true
+  filter_fallback: true          # Widen to unfiltered search if service/env filters leave too few docs
+
+# ── Chunking Settings ──────────────────────────────────────────
+chunking:
+  default_strategy: "sliding_window"   # sliding_window | semantic | sentence
+  chunk_size: 512                      # tokens
+  chunk_overlap: 50                    # tokens
+  strategies_by_type:
+    incident_ticket: "semantic"
+    runbook: "sliding_window"
+    post_mortem: "semantic"
+    alert: "sentence"
+    documentation: "sliding_window"
+
+# ── Redis Cache ────────────────────────────────────────────────
+cache:
+  enabled: true
+  host: "localhost"
+  port: 6379
+  password: ""
+  ttl_seconds: 3600
+  max_memory: "256mb"
+
+# ── Ingestion Sources ──────────────────────────────────────────
+ingestion:
+  servicenow:
+    enabled: false
+    instance_url: "https://YOUR_INSTANCE.service-now.com"
+    username: "YOUR_USERNAME"
+    password: "YOUR_PASSWORD"
+    tables: ["incident", "kb_knowledge"]
+    batch_size: 100
+
+  pagerduty:
+    enabled: false
+    api_key: "YOUR_PAGERDUTY_KEY"
+    lookback_days: 90
+
+  confluence:
+    enabled: false
+    url: "https://YOUR_ORG.atlassian.net/wiki"
+    username: "YOUR_EMAIL"
+    api_token: "YOUR_CONFLUENCE_TOKEN"
+    spaces: ["SRE", "RUNBOOKS", "POSTMORTEMS"]
+
+  github:
+    enabled: false
+    token: "YOUR_GITHUB_TOKEN"
+    repos: ["org/runbooks", "org/sre-docs"]
+    file_patterns: ["*.md", "*.txt"]
+
+  local_files:
+    enabled: true
+    paths: ["data/samples"]
+    recursive: true
+
+# ── API Settings ───────────────────────────────────────────────
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  cors_origins: ["*"]
+  rate_limit_per_minute: 60
+
+# ── Evaluation ─────────────────────────────────────────────────
+evaluation:
+  dataset_path: "data/samples/eval_dataset.json"
+  metrics: ["accuracy", "precision_at_1", "recall_at_3", "mdt"]
+  output_dir: "data/eval_results"

@@ -1,0 +1,22 @@
+# Keep secrets and local artefacts out of the image build context.
+# Without this, a local config/config.yaml (with real API keys) or .env was
+# copied into the image by `COPY config/ ./config/`.
+.git
+.github
+.env
+.env.*
+!.env.example
+config/config.yaml
+data/faiss_index/
+data/eval_results/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+.vscode/
+.idea/
+.DS_Store

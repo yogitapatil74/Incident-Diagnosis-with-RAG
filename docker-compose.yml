@@ -1,0 +1,102 @@
+# ─────────────────────────────────────────────────────────────────
+#  RAG-AIOps — Single Command Startup
+#
+#  Usage:
+#    OPENAI_API_KEY=sk-xxx docker-compose up --build
+#
+#  No API key? Runs fully offline with local embeddings:
+#    docker-compose up --build
+#
+#  Force re-index knowledge base:
+#    FORCE_REINDEX=true OPENAI_API_KEY=sk-xxx docker-compose up
+# ─────────────────────────────────────────────────────────────────
+
+x-aiops-env: &aiops-env
+  OPENAI_API_KEY:         ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY:      ${ANTHROPIC_API_KEY:-}
+  LLM_PROVIDER:           ${LLM_PROVIDER:-openai}
+  LLM_MODEL:              ${LLM_MODEL:-gpt-4-turbo}
+  EMBEDDING_PROVIDER:     ${EMBEDDING_PROVIDER:-openai}
+  EMBEDDING_MODEL:        ${EMBEDDING_MODEL:-text-embedding-ada-002}
+  LOCAL_EMBEDDING_MODEL:  ${LOCAL_EMBEDDING_MODEL:-sentence-transformers/all-mpnet-base-v2}
+  REDIS_HOST:             redis
+  REDIS_PORT:             6379
+  API_PORT:               8000
+  API_WORKERS:            2
+  LOG_LEVEL:              ${LOG_LEVEL:-INFO}
+  FORCE_REINDEX:          ${FORCE_REINDEX:-false}
+
+services:
+
+  aiops-api:
+    build:
+      context: .
+      target: runtime
+    container_name: aiops-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      <<: *aiops-env
+    volumes:
+      - faiss-data:/app/data/faiss_index
+      - eval-results:/app/data/eval_results
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: aiops-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save ""
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: aiops-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: aiops-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED:  "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  faiss-data:
+  eval-results:
+  redis-data:
+  prometheus-data:
+  grafana-data:

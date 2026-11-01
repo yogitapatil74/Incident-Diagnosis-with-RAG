@@ -1,0 +1,72 @@
+[
+  {
+    "id": "INC-2024-001",
+    "title": "Payment service returning HTTP 503 errors under load",
+    "priority": "P1",
+    "service": "payments-service",
+    "environment": "production",
+    "description": "The payments-service pods are intermittently returning HTTP 503 Service Unavailable errors. Issue started at 14:32 UTC. Approximately 12% of payment requests are failing. Pod restarts observed in the Kubernetes dashboard. Database connection errors visible in pod logs.",
+    "error_message": "HikariPool-1 - Connection is not available, request timed out after 30000ms. [payments-db:5432]",
+    "resolution_notes": "Identified connection pool exhaustion caused by a slow query introduced in the v2.3.1 deployment. Rolled back to v2.3.0. Added index on payments.created_at column. Pool size increased from 10 to 25.",
+    "root_cause": "Database connection pool exhaustion due to slow query regression",
+    "tags": ["database", "connection-pool", "performance", "kubernetes"],
+    "created_at": "2024-01-15T14:32:00Z",
+    "resolved_at": "2024-01-15T15:47:00Z"
+  },
+  {
+    "id": "INC-2024-002",
+    "title": "Kubernetes pods in CrashLoopBackOff — OOMKilled",
+    "priority": "P2",
+    "service": "recommendation-engine",
+    "environment": "production",
+    "description": "The recommendation-engine pods are entering CrashLoopBackOff state. kubectl describe shows OOMKilled as the termination reason. Memory usage spiked after the ML model reload at 03:00 UTC scheduled job.",
+    "error_message": "OOMKilled: Container recommendation-engine exceeded memory limit of 2Gi",
+    "resolution_notes": "Increased memory limits from 2Gi to 4Gi in the deployment manifest. Added memory-based HPA scaling. Root cause was the new transformer model requiring 3.2Gi at inference time.",
+    "root_cause": "Kubernetes OOMKilled due to insufficient memory limits for ML model",
+    "tags": ["kubernetes", "oom", "memory", "ml-model", "crashloopbackoff"],
+    "created_at": "2024-01-20T03:15:00Z",
+    "resolved_at": "2024-01-20T04:02:00Z"
+  },
+  {
+    "id": "INC-2024-003",
+    "title": "Kafka consumer lag growing — order processing delayed",
+    "priority": "P1",
+    "service": "order-processor",
+    "environment": "production",
+    "description": "Consumer lag on the orders topic has grown from 0 to 450,000 messages over the last 2 hours. Order confirmation emails are delayed. The order-processor service appears healthy but processing throughput dropped 70% after the v1.8.0 deployment.",
+    "error_message": "Consumer group order-processor-prod lag: 452183 messages on partition 0-7",
+    "resolution_notes": "The v1.8.0 deployment introduced synchronous external API calls inside the message handler, reducing throughput from 2000 to 600 msg/s. Moved external calls to async processing. Increased consumer group partition count from 8 to 24.",
+    "root_cause": "Kafka consumer throughput degradation due to synchronous blocking calls in message handler",
+    "tags": ["kafka", "consumer-lag", "throughput", "async", "deployment-regression"],
+    "created_at": "2024-02-03T09:45:00Z",
+    "resolved_at": "2024-02-03T12:30:00Z"
+  },
+  {
+    "id": "INC-2024-004",
+    "title": "TLS certificate expiry causing service mesh failures",
+    "priority": "P1",
+    "service": "api-gateway",
+    "environment": "production",
+    "description": "Multiple services are returning SSL_ERROR_RX_RECORD_TOO_LONG errors. The api-gateway cannot establish mTLS connections with downstream services. Certificate rotation was disabled 3 months ago during a migration and not re-enabled.",
+    "error_message": "SSL handshake failed: certificate has expired (notAfter=2024-02-10T00:00:00Z)",
+    "resolution_notes": "Renewed wildcard certificate via cert-manager. Re-enabled automatic certificate rotation in Istio mesh configuration. Added certificate expiry monitoring alert with 30-day advance warning.",
+    "root_cause": "TLS certificate expiry in service mesh due to disabled automatic rotation",
+    "tags": ["tls", "certificate", "istio", "service-mesh", "cert-manager"],
+    "created_at": "2024-02-10T08:00:00Z",
+    "resolved_at": "2024-02-10T09:15:00Z"
+  },
+  {
+    "id": "INC-2024-005",
+    "title": "Redis cache eviction causing database overload",
+    "priority": "P2",
+    "service": "catalog-service",
+    "environment": "production",
+    "description": "Database CPU is at 95%. The catalog-service is generating 40x normal query volume. Redis cache hit rate dropped from 94% to 8% after a configuration change set maxmemory-policy to allkeys-lru with a too-small maxmemory value.",
+    "error_message": "Redis MAXMEMORY limit reached. Cache miss rate: 92%",
+    "resolution_notes": "Increased Redis maxmemory from 512MB to 4GB. Changed eviction policy to volatile-lru to protect critical session keys. Implemented cache warming script to pre-populate top 10k catalog items.",
+    "root_cause": "Redis cache eviction due to misconfigured maxmemory causing database overload",
+    "tags": ["redis", "cache", "database", "eviction", "configuration"],
+    "created_at": "2024-02-18T16:20:00Z",
+    "resolved_at": "2024-02-18T17:45:00Z"
+  }
+]

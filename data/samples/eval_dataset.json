@@ -1,0 +1,82 @@
+[
+  {
+    "incident_id": "EVAL-001",
+    "title": "Checkout service timing out — database connection errors",
+    "description": "The checkout-service is returning 504 Gateway Timeout errors. Application logs show HikariPool connection timeout messages. Issue started 20 minutes after the v3.1.0 deployment. Database shows 98 active connections out of max 100.",
+    "service": "checkout-service",
+    "priority": "P1",
+    "environment": "production",
+    "error_message": "HikariPool-1 - Connection is not available, request timed out after 30000ms",
+    "ground_truth_root_cause": "Database connection pool exhaustion"
+  },
+  {
+    "incident_id": "EVAL-002",
+    "title": "ML inference pods in CrashLoopBackOff after model upgrade",
+    "description": "The ml-inference-service pods are crashing repeatedly. kubectl describe shows OOMKilled as the exit reason. The new transformer model v2 was deployed this morning. Memory limit is set to 2Gi in the deployment manifest.",
+    "service": "ml-inference-service",
+    "priority": "P1",
+    "environment": "production",
+    "error_message": "OOMKilled: container ml-inference exceeded memory limit of 2Gi",
+    "ground_truth_root_cause": "Kubernetes OOMKilled due to insufficient memory limits"
+  },
+  {
+    "incident_id": "EVAL-003",
+    "title": "Order processing queue backup — 500k messages pending",
+    "description": "The orders Kafka topic has 500,000 unprocessed messages. The order-consumer service is running but throughput dropped from 3000 to 400 messages/second after the latest deployment. No error logs visible.",
+    "service": "order-consumer",
+    "priority": "P1",
+    "environment": "production",
+    "error_message": "Consumer lag on orders-topic partition 0: 502847",
+    "ground_truth_root_cause": "Kafka consumer throughput degradation"
+  },
+  {
+    "incident_id": "EVAL-004",
+    "title": "API gateway TLS handshake failures across all services",
+    "description": "All microservices are failing mTLS handshakes through the Istio service mesh. Error is SSL certificate expired. Certificate was last renewed 1 year ago. Cert-manager auto-renewal appears to be disabled.",
+    "service": "api-gateway",
+    "priority": "P1",
+    "environment": "production",
+    "error_message": "TLS handshake error: x509: certificate has expired or is not yet valid",
+    "ground_truth_root_cause": "TLS certificate expiry in service mesh"
+  },
+  {
+    "incident_id": "EVAL-005",
+    "title": "Product catalog API latency spike — database CPU at 100%",
+    "description": "The catalog-api is responding in 12 seconds (normal <200ms). Database CPU is at 100%. Redis hit rate dropped from 92% to 5% after an operations team updated the Redis maxmemory config. All cache keys appear to be evicting immediately.",
+    "service": "catalog-api",
+    "priority": "P2",
+    "environment": "production",
+    "error_message": "Redis MAXMEMORY limit reached, keys evicted: 284738",
+    "ground_truth_root_cause": "Redis cache eviction due to misconfigured maxmemory"
+  },
+  {
+    "incident_id": "EVAL-006",
+    "title": "Auth service pod scheduling failure — insufficient CPU",
+    "description": "New auth-service pods are stuck in Pending state. kubectl describe shows FailedScheduling: 0/12 nodes are available: Insufficient cpu. Recent cluster autoscaler logs show scale-out attempts failing due to node pool quota limits.",
+    "service": "auth-service",
+    "priority": "P2",
+    "environment": "production",
+    "error_message": "0/12 nodes are available: Insufficient cpu (12). preemption: 0/12 nodes are available",
+    "ground_truth_root_cause": "Kubernetes cluster resource exhaustion preventing pod scheduling"
+  },
+  {
+    "incident_id": "EVAL-007",
+    "title": "Microservice circuit breaker open — downstream dependency failing",
+    "description": "The payment-gateway service circuit breaker to the fraud-detection service is in OPEN state. 100% of requests are failing fast. The fraud-detection service shows high latency (>10s) after its ML model was updated.",
+    "service": "payment-gateway",
+    "priority": "P1",
+    "environment": "production",
+    "error_message": "CircuitBreaker fraud-detection OPEN: 15 failures in last 30s, threshold=10",
+    "ground_truth_root_cause": "Circuit breaker open due to downstream service latency degradation"
+  },
+  {
+    "incident_id": "EVAL-008",
+    "title": "Prometheus alerting silent — no alerts firing for 3 hours",
+    "description": "SRE team noticed no alerts have fired in 3 hours despite known issues. Prometheus is running but AlertManager shows zero alerts in pending or firing state. The alertmanager config was updated yesterday to add Slack integration.",
+    "service": "monitoring-stack",
+    "priority": "P2",
+    "environment": "production",
+    "error_message": "AlertManager: 0 active alerts. Last successful reload: never",
+    "ground_truth_root_cause": "AlertManager misconfiguration causing silent alerting failure"
+  }
+]
